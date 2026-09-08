@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+.DS_Store
+models/*.pt
+!models/snake_bot.pt
+!models/untrained.pt
+runs/
+logs/

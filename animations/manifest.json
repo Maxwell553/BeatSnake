@@ -1,0 +1,200 @@
+[
+  {
+    "size": "5x5",
+    "hunt": true,
+    "steps": 130,
+    "length": 25,
+    "won": true,
+    "file": "animations/fast/snake_5x5.gif",
+    "frames": 139
+  },
+  {
+    "size": "6x6",
+    "hunt": true,
+    "steps": 217,
+    "length": 36,
+    "won": true,
+    "file": "animations/fast/snake_6x6.gif",
+    "frames": 226
+  },
+  {
+    "size": "7x7",
+    "hunt": true,
+    "steps": 572,
+    "length": 49,
+    "won": true,
+    "file": "animations/fast/snake_7x7.gif",
+    "frames": 295
+  },
+  {
+    "size": "8x6",
+    "hunt": true,
+    "steps": 417,
+    "length": 48,
+    "won": true,
+    "file": "animations/fast/snake_8x6.gif",
+    "frames": 218
+  },
+  {
+    "size": "8x8",
+    "hunt": true,
+    "steps": 677,
+    "length": 64,
+    "won": true,
+    "file": "animations/fast/snake_8x8.gif",
+    "frames": 348
+  },
+  {
+    "size": "9x9",
+    "hunt": true,
+    "steps": 1170,
+    "length": 81,
+    "won": true,
+    "file": "animations/fast/snake_9x9.gif",
+    "frames": 302
+  },
+  {
+    "size": "10x10",
+    "hunt": true,
+    "steps": 1676,
+    "length": 100,
+    "won": true,
+    "file": "animations/fast/snake_10x10.gif",
+    "frames": 219
+  },
+  {
+    "size": "12x8",
+    "hunt": true,
+    "steps": 1543,
+    "length": 96,
+    "won": true,
+    "file": "animations/fast/snake_12x8.gif",
+    "frames": 202
+  },
+  {
+    "size": "12x12",
+    "hunt": true,
+    "steps": 2894,
+    "length": 144,
+    "won": true,
+    "file": "animations/fast/snake_12x12.gif",
+    "frames": 190
+  },
+  {
+    "size": "16x10",
+    "hunt": true,
+    "steps": 3847,
+    "length": 160,
+    "won": true,
+    "file": "animations/fast/snake_16x10.gif",
+    "frames": 250
+  },
+  {
+    "size": "20x12",
+    "hunt": true,
+    "steps": 8915,
+    "length": 240,
+    "won": true,
+    "file": "animations/fast/snake_20x12.gif",
+    "frames": 288
+  },
+  {
+    "size": "5x5",
+    "hunt": false,
+    "steps": 166,
+    "length": 25,
+    "won": true,
+    "file": "animations/rail/snake_5x5.gif",
+    "frames": 175
+  },
+  {
+    "size": "6x6",
+    "hunt": false,
+    "steps": 269,
+    "length": 36,
+    "won": true,
+    "file": "animations/rail/snake_6x6.gif",
+    "frames": 278
+  },
+  {
+    "size": "7x7",
+    "hunt": false,
+    "steps": 758,
+    "length": 49,
+    "won": true,
+    "file": "animations/rail/snake_7x7.gif",
+    "frames": 199
+  },
+  {
+    "size": "8x6",
+    "hunt": false,
+    "steps": 560,
+    "length": 48,
+    "won": true,
+    "file": "animations/rail/snake_8x6.gif",
+    "frames": 289
+  },
+  {
+    "size": "8x8",
+    "hunt": false,
+    "steps": 1031,
+    "length": 64,
+    "won": true,
+    "file": "animations/rail/snake_8x8.gif",
+    "frames": 267
+  },
+  {
+    "size": "9x9",
+    "hunt": false,
+    "steps": 1818,
+    "length": 81,
+    "won": true,
+    "file": "animations/rail/snake_9x9.gif",
+    "frames": 237
+  },
+  {
+    "size": "10x10",
+    "hunt": false,
+    "steps": 2266,
+    "length": 100,
+    "won": true,
+    "file": "animations/rail/snake_10x10.gif",
+    "frames": 293
+  },
+  {
+    "size": "12x8",
+    "hunt": false,
+    "steps": 2491,
+    "length": 96,
+    "won": true,
+    "file": "animations/rail/snake_12x8.gif",
+    "frames": 321
+  },
+  {
+    "size": "12x12",
+    "hunt": false,
+    "steps": 4778,
+    "length": 144,
+    "won": true,
+    "file": "animations/rail/snake_12x12.gif",
+    "frames": 308
+  },
+  {
+    "size": "16x10",
+    "hunt": false,
+    "steps": 5865,
+    "length": 160,
+    "won": true,
+    "file": "animations/rail/snake_16x10.gif",
+    "frames": 193
+  },
+  {
+    "size": "20x12",
+    "hunt": false,
+    "steps": 13205,
+    "length": 240,
+    "won": true,
+    "file": "animations/rail/snake_20x12.gif",
+    "frames": 216
+  }
+]

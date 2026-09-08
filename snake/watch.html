@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Snake Bot</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #121b2d;
+      --ink: #e7eefc;
+      --muted: #93a0bb;
+      --line: #2a3854;
+      --food: #ff5d6c;
+      --head: #5dffb1;
+      --body: #2fbf7a;
+      --grid: #1a2740;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, #1a2b4d, var(--bg));
+      color: var(--ink);
+    }
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+    }
+    h1 { font-size: 1.4rem; margin: 0 0 6px; }
+    p.lead { color: var(--muted); margin: 0 0 18px; }
+    .controls, .status {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: end;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted); }
+    input, select {
+      background: #0d1628;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      min-width: 76px;
+    }
+    button {
+      background: var(--head);
+      color: #062415;
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.secondary { background: #24324c; color: var(--ink); }
+    .presets { display: flex; gap: 6px; flex-wrap: wrap; }
+    .presets button { padding: 8px 10px; font-size: 12px; }
+    canvas {
+      display: block;
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      background: #071018;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+    }
+    .status span { color: var(--muted); }
+    .status b { color: var(--ink); font-variant-numeric: tabular-nums; }
+    .win { color: var(--head); }
+    .dead { color: var(--food); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Watch the Snake bot</h1>
+    <p class="lead">Pick a board size and press Play. Every player here is the never-die covering-cycle policy, or a network that is overridden if it would leave that path.</p>
+    <div class="controls">
+      <label>Width <input id="width" type="number" min="4" max="40" value="12" /></label>
+      <label>Height <input id="height" type="number" min="4" max="40" value="12" /></label>
+      <label>Player
+        <select id="mode">
+            <option value="perfect" selected>Always win</option>
+            <option value="neural">Neural + always-win guard</option>
+            <option value="hybrid">Hybrid + always-win guard</option>
+        </select>
+      </label>
+      <label>Speed
+        <select id="speed">
+          <option value="180">Slow</option>
+          <option value="90" selected>Normal</option>
+          <option value="40">Fast</option>
+          <option value="16">Very fast</option>
+        </select>
+      </label>
+      <button id="play">Play</button>
+      <button class="secondary" id="pause">Pause</button>
+      <button class="secondary" id="reset">New game</button>
+    </div>
+    <div class="presets">
+      <button class="secondary" data-size="6x6">6×6</button>
+      <button class="secondary" data-size="8x8">8×8</button>
+      <button class="secondary" data-size="10x10">10×10</button>
+      <button class="secondary" data-size="12x12">12×12</button>
+      <button class="secondary" data-size="16x10">16×10</button>
+      <button class="secondary" data-size="20x12">20×12</button>
+    </div>
+    <div class="status">
+      <div>Length <b id="len">—</b></div>
+      <div>Board <b id="boardSize">—</b></div>
+      <div>Steps <b id="steps">—</b></div>
+      <div>Player <b id="player">—</b></div>
+      <div id="result"></div>
+    </div>
+    <canvas id="grid" width="720" height="720"></canvas>
+  </main>
+  <script>
+    const canvas = document.getElementById("grid");
+    const ctx = canvas.getContext("2d");
+    const els = {
+      width: document.getElementById("width"),
+      height: document.getElementById("height"),
+      mode: document.getElementById("mode"),
+      speed: document.getElementById("speed"),
+      len: document.getElementById("len"),
+      boardSize: document.getElementById("boardSize"),
+      steps: document.getElementById("steps"),
+      player: document.getElementById("player"),
+      result: document.getElementById("result"),
+    };
+    let game = null;
+    let timer = null;
+    let busy = false;
+
+    async function post(url, body) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body || {}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "request failed");
+      return data;
+    }
+
+    function draw(state) {
+      const w = state.width;
+      const h = state.height;
+      const pad = 18;
+      const size = Math.min(canvas.width, canvas.height) - pad * 2;
+      const cell = Math.min(size / w, size / h);
+      const ox = (canvas.width - cell * w) / 2;
+      const oy = (canvas.height - cell * h) / 2;
+      ctx.fillStyle = "#071018";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#0e1a2c";
+      ctx.fillRect(ox, oy, cell * w, cell * h);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          ctx.strokeStyle = "#152238";
+          ctx.strokeRect(ox + x * cell, oy + y * cell, cell, cell);
+        }
+      }
+      if (state.food) {
+        roundCell(state.food[0], state.food[1], "#ff5d6c", cell, ox, oy, 0.28);
+      }
+      state.snake.forEach((pos, i) => {
+        const color = i === 0 ? "#5dffb1" : `hsl(150, 70%, ${42 - Math.min(18, i)}%)`;
+        roundCell(pos[0], pos[1], color, cell, ox, oy, i === 0 ? 0.18 : 0.24);
+      });
+      els.len.textContent = `${state.length} / ${state.area}`;
+      els.boardSize.textContent = `${w}×${h}`;
+      els.steps.textContent = state.steps;
+      els.player.textContent = state.mode;
+      els.result.className = "";
+      if (state.won) {
+        els.result.textContent = "Board filled";
+        els.result.className = "win";
+      } else if (state.done) {
+        els.result.textContent = "Died: " + (state.reason || "collision");
+        els.result.className = "dead";
+      } else {
+        els.result.textContent = "";
+      }
+    }
+
+    function roundCell(x, y, color, cell, ox, oy, inset) {
+      const m = cell * inset;
+      ctx.fillStyle = color;
+      const r = Math.max(3, cell * 0.18);
+      const px = ox + x * cell + m;
+      const py = oy + y * cell + m;
+      const pw = cell - m * 2;
+      const ph = cell - m * 2;
+      ctx.beginPath();
+      ctx.moveTo(px + r, py);
+      ctx.arcTo(px + pw, py, px + pw, py + ph, r);
+      ctx.arcTo(px + pw, py + ph, px, py + ph, r);
+      ctx.arcTo(px, py + ph, px, py, r);
+      ctx.arcTo(px, py, px + pw, py, r);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    async function resetGame() {
+      stop();
+      game = await post("/api/new", {
+        width: Number(els.width.value),
+        height: Number(els.height.value),
+        mode: els.mode.value,
+        seed: Date.now() % 100000,
+      });
+      draw(game);
+    }
+
+    async function tick() {
+      if (busy || !game || game.done) {
+        stop();
+        return;
+      }
+      busy = true;
+      try {
+        game = await post("/api/step", {});
+        draw(game);
+        if (game.done) stop();
+      } catch (err) {
+        stop();
+        document.getElementById("result").textContent = err.message;
+        document.getElementById("result").className = "dead";
+      } finally {
+        busy = false;
+      }
+    }
+
+    function play() {
+      if (!game || game.done) resetGame().then(startLoop);
+      else startLoop();
+    }
+    function startLoop() {
+      stop();
+      timer = setInterval(tick, Number(els.speed.value));
+    }
+    function stop() {
+      if (timer) clearInterval(timer);
+      timer = null;
+    }
+
+    document.getElementById("play").onclick = play;
+    document.getElementById("pause").onclick = stop;
+    document.getElementById("reset").onclick = resetGame;
+    document.querySelectorAll(".presets button").forEach((btn) => {
+      btn.onclick = () => {
+        const [w, h] = btn.dataset.size.split("x");
+        els.width.value = w;
+        els.height.value = h;
+        resetGame().then(startLoop);
+      };
+    });
+    resetGame().then(startLoop);
+  </script>
+</body>
+</html>
