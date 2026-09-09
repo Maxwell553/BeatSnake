@@ -19,7 +19,7 @@ LOCK = threading.Lock()
 STATE = {
     "env": None,
     "bot": None,
-    "mode": "perfect",
+    "mode": "neural",
     "model_path": None,
 }
 

@@ -54,7 +54,7 @@ def run_games(bot: SnakeBot, width: int, height: int, games: int, seed: int) -> 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate a Snake bot on many board sizes.")
-    parser.add_argument("--mode", choices=["neural", "perfect", "hybrid", "random"], default="hybrid")
+    parser.add_argument("--mode", choices=["neural", "perfect", "hybrid", "random"], default="neural")
     parser.add_argument("--model", type=str, default="")
     parser.add_argument("--games", type=int, default=10)
     parser.add_argument(

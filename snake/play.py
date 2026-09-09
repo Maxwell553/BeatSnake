@@ -42,7 +42,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Play Snake with a trained or perfect bot.")
     parser.add_argument("--width", type=int, default=12)
     parser.add_argument("--height", type=int, default=12)
-    parser.add_argument("--mode", choices=["neural", "perfect", "hybrid", "random"], default="perfect")
+    parser.add_argument("--mode", choices=["neural", "perfect", "hybrid", "random"], default="neural")
     parser.add_argument("--model", type=str, default="")
     parser.add_argument("--delay", type=float, default=0.05)
     parser.add_argument("--seed", type=int, default=0)

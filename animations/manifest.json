@@ -196,5 +196,126 @@
     "won": true,
     "file": "animations/rail/snake_20x12.gif",
     "frames": 216
+  },
+  {
+    "size": "5x5",
+    "hunt": true,
+    "label": "untrained",
+    "steps": 56,
+    "length": 4,
+    "won": false,
+    "reason": "starve",
+    "file": "animations/untrained/snake_5x5.gif",
+    "frames": 65
+  },
+  {
+    "size": "6x6",
+    "hunt": true,
+    "label": "untrained",
+    "steps": 73,
+    "length": 4,
+    "won": false,
+    "reason": "starve",
+    "file": "animations/untrained/snake_6x6.gif",
+    "frames": 82
+  },
+  {
+    "size": "7x7",
+    "hunt": true,
+    "label": "untrained",
+    "steps": 98,
+    "length": 3,
+    "won": false,
+    "reason": "starve",
+    "file": "animations/untrained/snake_7x7.gif",
+    "frames": 107
+  },
+  {
+    "size": "8x6",
+    "hunt": true,
+    "label": "untrained",
+    "steps": 5,
+    "length": 3,
+    "won": false,
+    "reason": "wall",
+    "file": "animations/untrained/snake_8x6.gif",
+    "frames": 14
+  },
+  {
+    "size": "8x8",
+    "hunt": true,
+    "label": "untrained",
+    "steps": 6,
+    "length": 3,
+    "won": false,
+    "reason": "wall",
+    "file": "animations/untrained/snake_8x8.gif",
+    "frames": 15
+  },
+  {
+    "size": "9x9",
+    "hunt": true,
+    "label": "untrained",
+    "steps": 177,
+    "length": 4,
+    "won": false,
+    "reason": "starve",
+    "file": "animations/untrained/snake_9x9.gif",
+    "frames": 186
+  },
+  {
+    "size": "10x10",
+    "hunt": true,
+    "label": "untrained",
+    "steps": 200,
+    "length": 3,
+    "won": false,
+    "reason": "starve",
+    "file": "animations/untrained/snake_10x10.gif",
+    "frames": 209
+  },
+  {
+    "size": "12x8",
+    "hunt": true,
+    "label": "untrained",
+    "steps": 192,
+    "length": 3,
+    "won": false,
+    "reason": "starve",
+    "file": "animations/untrained/snake_12x8.gif",
+    "frames": 201
+  },
+  {
+    "size": "12x12",
+    "hunt": true,
+    "label": "untrained",
+    "steps": 288,
+    "length": 3,
+    "won": false,
+    "reason": "starve",
+    "file": "animations/untrained/snake_12x12.gif",
+    "frames": 297
+  },
+  {
+    "size": "16x10",
+    "hunt": true,
+    "label": "untrained",
+    "steps": 320,
+    "length": 3,
+    "won": false,
+    "reason": "starve",
+    "file": "animations/untrained/snake_16x10.gif",
+    "frames": 329
+  },
+  {
+    "size": "20x12",
+    "hunt": true,
+    "label": "untrained",
+    "steps": 480,
+    "length": 3,
+    "won": false,
+    "reason": "starve",
+    "file": "animations/untrained/snake_20x12.gif",
+    "frames": 249
   }
 ]

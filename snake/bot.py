@@ -12,6 +12,7 @@ from snake.env import SnakeEnv
 from snake.model import SnakeActorCritic
 from snake.perfect import HybridBot, PerfectBot
 from snake.ppo import pick_device
+from snake.train import load_compatible_state
 
 
 def default_model_path() -> Path:
@@ -29,7 +30,7 @@ def load_network(path: Optional[str] = None, device: Optional[torch.device] = No
     payload = torch.load(model_path, map_location=device, weights_only=False)
     model = SnakeActorCritic()
     state = payload["model_state"] if isinstance(payload, dict) and "model_state" in payload else payload
-    model.load_state_dict(state)
+    load_compatible_state(model, state)
     model.to(device)
     model.eval()
     return model
@@ -40,7 +41,7 @@ class SnakeBot:
 
     def __init__(
         self,
-        mode: str = "hybrid",
+        mode: str = "neural",
         model_path: Optional[str] = None,
         device: Optional[torch.device] = None,
     ) -> None:
@@ -58,14 +59,13 @@ class SnakeBot:
     def act(self, env: SnakeEnv) -> int:
         if self.mode == "random":
             return int(np.random.randint(0, 3))
-        # Covering-cycle policy never dies from a fresh game on any board size.
-        # Neural/hybrid may propose a hunt, but a disagreeing move is replaced so
-        # the watcher cannot lose.
-        teacher = self.perfect.act(env)
         if self.mode == "perfect" or self.model is None:
-            return teacher
-        proposed = self._neural_action(env)
-        return proposed if proposed == teacher else teacher
+            return self.perfect.act(env)
+        if self.mode == "neural":
+            # Unwrapped network only — no covering-cycle / search fallback.
+            return self._neural_action(env)
+        # hybrid: network proposal, PerfectBot if that move is unsafe
+        return self._hybrid.act(env)
 
     @torch.no_grad()
     def _neural_action(self, env: SnakeEnv) -> int:

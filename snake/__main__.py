@@ -7,7 +7,7 @@ import sys
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print("Usage: python -m snake <train|play|watch|eval|record|wins|export>")
+        print("Usage: python -m snake <train|play|watch|eval|record|wins|plot|export>")
         raise SystemExit(2)
     cmd = sys.argv[1]
     sys.argv = [sys.argv[0], *sys.argv[2:]]
@@ -35,6 +35,10 @@ def main() -> None:
         from snake.win_train import main as win_main
 
         win_main()
+    elif cmd in {"plot", "graphs", "plot-curves"}:
+        from snake.plot_curves import main as plot_main
+
+        plot_main()
     elif cmd == "export":
         from snake.bot import default_model_path
 

@@ -164,12 +164,17 @@ def record_game(
     seed: int,
     out: Path,
     max_frames: int = 360,
+    policy=None,
+    require_win: bool = True,
+    label: str = "perfect",
+    max_idle: int = 0,
+    step_limit_mult: int = 80,
 ) -> dict:
-    env = SnakeEnv(width, height, seed=seed, max_idle=0)
+    env = SnakeEnv(width, height, seed=seed, max_idle=max_idle)
     env.reset()
-    bot = PerfectBot(hunt=hunt)
+    bot = policy if policy is not None else PerfectBot(hunt=hunt)
     cell = cell_px(width, height)
-    limit = width * height * 80
+    limit = width * height * step_limit_mult
     stride = 1
     frames = [render(env, cell)]
     while not env.done and env.steps < limit:
@@ -179,15 +184,15 @@ def record_game(
             if len(frames) > max_frames:
                 frames = frames[::2]
                 stride *= 2
-    if not env.won:
-        raise RuntimeError(f"{width}x{height} hunt={hunt} failed: {env.death_reason} len={env.length}")
+    if require_win and not env.won:
+        raise RuntimeError(f"{width}x{height} {label} failed: {env.death_reason} len={env.length}")
     if len(frames) > max_frames:
         step = int(np.ceil(len(frames) / max_frames))
         kept = frames[::step]
         if kept[-1] is not frames[-1]:
             kept.append(frames[-1])
         frames = kept
-    # Freeze the win for a beat.
+    # Freeze the last frame for a beat.
     frames.extend([frames[-1]] * 8)
     out.parent.mkdir(parents=True, exist_ok=True)
     frames[0].save(
@@ -201,9 +206,11 @@ def record_game(
     return {
         "size": f"{width}x{height}",
         "hunt": hunt,
+        "label": label,
         "steps": env.steps,
         "length": env.length,
         "won": env.won,
+        "reason": env.death_reason or ("timeout" if not env.done else ""),
         "file": str(out),
         "frames": len(frames),
     }
@@ -212,28 +219,27 @@ def record_game(
 def write_gallery(root: Path, reports: list) -> None:
     by_size = {}
     for row in reports:
-        by_size.setdefault(row["size"], {})[row["hunt"]] = row
+        key = row.get("label") or ("fast" if row.get("hunt") else "rail")
+        by_size.setdefault(row["size"], {})[key] = row
 
     def card(row, label: str) -> str:
         rel = Path(row["file"]).relative_to(root)
+        extra = f" · won" if row.get("won") else f" · {row.get('reason') or 'ended'} len={row.get('length')}"
         return (
             f'<figure><img src="{rel.as_posix()}" alt="{row["size"]} {label}" />'
-            f"<figcaption>{label} · {row['steps']} steps</figcaption></figure>"
+            f"<figcaption>{label} · {row['steps']} steps{extra}</figcaption></figure>"
         )
 
     blocks = []
     for size, variants in by_size.items():
-        fast = variants.get(True)
-        rail = variants.get(False)
+        order = [k for k in ("rail", "fast", "untrained") if k in variants]
+        figs = [card(variants[k], k) for k in order]
         saved = ""
-        if fast and rail:
-            pct = 100 * (rail["steps"] - fast["steps"]) / rail["steps"]
-            saved = f' · fast saves {rail["steps"] - fast["steps"]} steps ({pct:.0f}%)'
-        figs = []
-        if rail:
-            figs.append(card(rail, "rail"))
-        if fast:
-            figs.append(card(fast, "fast"))
+        if "fast" in variants and "rail" in variants:
+            rail = variants["rail"]["steps"]
+            fast = variants["fast"]["steps"]
+            pct = 100 * (rail - fast) / rail
+            saved = f" · fast saves {rail - fast} steps ({pct:.0f}%)"
         blocks.append(
             f"<article><h2>{size}{saved}</h2><div class=\"pair\">{''.join(figs)}</div></article>"
         )
@@ -252,8 +258,8 @@ img {{ width: 100%; image-rendering: auto; border-radius: 6px; }}
 figcaption {{ font-size: 12px; color: #d5e4b0; margin-top: 8px; }}
 </style></head>
 <body>
-<h1>Never-die Snake, every board size</h1>
-<p>Drawn like Google Snake. Rail follows one covering cycle, so every lap looks the same. Fast still never dies: it only jumps ahead on that cycle when the path from the new head to the tail is empty, which cuts about 25–40% of the steps.</p>
+<h1>Snake animations, every board size</h1>
+<p>Drawn like Google Snake. Rail / fast are the never-die covering cycle. Untrained is the blank network (dies quickly).</p>
 {''.join(blocks)}
 </body></html>
 """
@@ -261,39 +267,79 @@ figcaption {{ font-size: 12px; color: #d5e4b0; margin-top: 8px; }}
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Record GIFs of the never-die bot.")
+    parser = argparse.ArgumentParser(description="Record GIFs of Snake bots.")
     parser.add_argument("--out", default="animations")
     parser.add_argument("--seed", type=int, default=7)
-    parser.add_argument("--style", choices=["fast", "rail", "both"], default="both")
+    parser.add_argument(
+        "--style",
+        choices=["fast", "rail", "both", "untrained"],
+        default="both",
+    )
+    parser.add_argument("--model", default="", help="Weights for untrained style (default models/untrained.pt)")
     args = parser.parse_args()
     root = Path(args.out)
     reports = []
-    styles = []
-    if args.style in {"fast", "both"}:
-        styles.append(("fast", True))
-    if args.style in {"rail", "both"}:
-        styles.append(("rail", False))
-    for hunt_name, hunt in styles:
+
+    if args.style == "untrained":
+        from snake.bot import SnakeBot
+
+        # Untrained net has no always-win guard: use raw network actions.
+        bot = SnakeBot(mode="neural", model_path=args.model or "models/untrained.pt")
+
+        class RawNet:
+            def act(self, env):
+                return bot._neural_action(env)
+
+        policy = RawNet()
         for w, h in SIZES:
-            path = root / hunt_name / f"snake_{w}x{h}.gif"
-            print(f"recording {hunt_name} {w}x{h} ...", flush=True)
-            info = record_game(w, h, hunt, args.seed, path)
-            print(f"  steps={info['steps']} -> {path}", flush=True)
+            path = root / "untrained" / f"snake_{w}x{h}.gif"
+            print(f"recording untrained {w}x{h} ...", flush=True)
+            info = record_game(
+                w,
+                h,
+                True,
+                args.seed,
+                path,
+                policy=policy,
+                require_win=False,
+                label="untrained",
+                max_idle=w * h * 2,
+                step_limit_mult=8,
+            )
+            print(
+                f"  steps={info['steps']} won={info['won']} len={info['length']} -> {path}",
+                flush=True,
+            )
             reports.append(info)
-    (root / "manifest.json").write_text(json.dumps(reports, indent=2))
+    else:
+        styles = []
+        if args.style in {"fast", "both"}:
+            styles.append(("fast", True))
+        if args.style in {"rail", "both"}:
+            styles.append(("rail", False))
+        for hunt_name, hunt in styles:
+            for w, h in SIZES:
+                path = root / hunt_name / f"snake_{w}x{h}.gif"
+                print(f"recording {hunt_name} {w}x{h} ...", flush=True)
+                info = record_game(w, h, hunt, args.seed, path, label=hunt_name)
+                print(f"  steps={info['steps']} -> {path}", flush=True)
+                reports.append(info)
+
+    # Merge with existing manifest entries for other styles when recording one style.
+    manifest_path = root / "manifest.json"
+    if manifest_path.exists() and args.style in {"untrained", "fast", "rail"}:
+        prev = json.loads(manifest_path.read_text())
+        keep_labels = {
+            "untrained": {"fast", "rail"},
+            "fast": {"rail", "untrained"},
+            "rail": {"fast", "untrained"},
+        }[args.style]
+        prev = [r for r in prev if (r.get("label") or ("fast" if r.get("hunt") else "rail")) in keep_labels]
+        reports = prev + reports
+
+    manifest_path.write_text(json.dumps(reports, indent=2))
     write_gallery(root, reports)
-    print(f"Wrote {root / 'manifest.json'} and {root / 'index.html'}", flush=True)
-    by_size = {}
-    for row in reports:
-        by_size.setdefault(row["size"], {})[row["hunt"]] = row["steps"]
-    print("\nsteps to fill (lower is better)", flush=True)
-    for size, vals in by_size.items():
-        rail = vals.get(False)
-        fast = vals.get(True)
-        if rail is not None and fast is not None:
-            print(f"  {size:6s}  rail {rail:5d}  fast {fast:5d}  saved {rail - fast}", flush=True)
-        else:
-            print(f"  {size:6s}  {vals}", flush=True)
+    print(f"Wrote {manifest_path} and {root / 'index.html'}", flush=True)
 
 
 if __name__ == "__main__":

@@ -45,6 +45,9 @@ class SnakeActorCritic(nn.Module):
         )
         self.actor = nn.Linear(hidden, N_ACTIONS)
         self.critic = nn.Linear(hidden, 1)
+        # Soft prior: boost actions whose relative leftover-to-food feature is ~0
+        # (PerfectBot's preferred safe cycle shortcut / rail step).
+        self.rel_action_boost = nn.Parameter(torch.tensor(4.0))
 
         self.conv.apply(lambda m: orthogonal_init(m, gain=np_sqrt2()))
         self.body.apply(lambda m: orthogonal_init(m, gain=np_sqrt2()))
@@ -61,7 +64,14 @@ class SnakeActorCritic(nn.Module):
         self, view: torch.Tensor, features: torch.Tensor
     ) -> Tuple[Categorical, torch.Tensor]:
         h = self.encode(view, features)
-        dist = Categorical(logits=self.actor(h))
+        logits = self.actor(h)
+        if features.shape[-1] >= 27:
+            rel = features[:, 24:27]
+            # Only boost when exactly one action is the PerfectBot leftover winner.
+            pref = (rel <= 1e-5).to(logits.dtype)
+            unique = (pref.sum(dim=-1, keepdim=True) == 1).to(logits.dtype)
+            logits = logits + self.rel_action_boost * pref * unique
+        dist = Categorical(logits=logits)
         value = self.critic(h).squeeze(-1)
         return dist, value
 

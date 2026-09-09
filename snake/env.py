@@ -18,7 +18,8 @@ import numpy as np
 N_ACTIONS = 3
 VIEW_SIZE = 11
 CHANNELS = 3  # body, food, walls
-N_FEATURES = 13
+# 13 board/control scalars + 11 covering-cycle scalars (see observe()).
+N_FEATURES = 27
 
 # World directions: 0=up, 1=right, 2=down, 3=left. y increases downward.
 DIRS: Tuple[Tuple[int, int], ...] = ((0, -1), (1, 0), (0, 1), (-1, 0))
@@ -196,8 +197,55 @@ class SnakeEnv:
         features[10] = self._wall_distance(2) / max_side
         features[11] = 1.0 if self.food is not None else 0.0
         features[12] = float(self.direction) / 3.0
-
+        self._fill_cycle_features(features)
         return {"view": view, "features": features}
+
+    def _fill_cycle_features(self, features: np.ndarray) -> None:
+        """Append covering-cycle scalars so a net can imitate PerfectBot."""
+        from snake.perfect import covering_cycle, cycle_dist, cycle_index_map
+
+        cycle, _excluded = covering_cycle(self.width, self.height)
+        index = cycle_index_map(cycle)
+        n = len(cycle)
+        head = self.head
+        if head not in index:
+            return
+        h = index[head]
+        food = self.food if self.food in index else None
+        dist_food = cycle_dist(h, index[food], n) / n if food is not None else 1.0
+        t = index.get(self.snake[-1])
+        room = cycle_dist(h, t, n) / n if t is not None else 0.0
+        features[13] = dist_food
+        features[14] = room
+        blocking = set(self.snake[:-1])
+        raw_left = []
+        for action in (0, 1, 2):
+            nd = turn(self.direction, action)
+            nxt = (head[0] + DIRS[nd][0], head[1] + DIRS[nd][1])
+            base = 15 + action * 3
+            if nxt not in index or nxt in blocking:
+                features[base] = 0.0
+                features[base + 1] = 1.0
+                features[base + 2] = 0.0
+                raw_left.append(None)
+                continue
+            ni = index[nxt]
+            jump = cycle_dist(h, ni, n)
+            left = cycle_dist(ni, index[food], n) / n if food is not None else 1.0
+            room_n = cycle_dist(ni, t, n) if t is not None else 0
+            need = self.length if food is not None and nxt == food else max(self.length - 1, 1)
+            shortcut = room_n > need and 0 < jump <= (
+                cycle_dist(h, index[food], n) if food is not None else n
+            )
+            rail = jump == 1
+            features[base] = 1.0
+            features[base + 1] = left
+            features[base + 2] = 1.0 if shortcut else 0.0
+            raw_left.append(left if (rail or shortcut) else None)
+        cand = [v for v in raw_left if v is not None]
+        min_left = min(cand) if cand else 1.0
+        for action, left in enumerate(raw_left):
+            features[24 + action] = (left - min_left) if left is not None else 1.0
 
     def occupancy(self) -> np.ndarray:
         grid = np.zeros((self.height, self.width), dtype=np.int32)

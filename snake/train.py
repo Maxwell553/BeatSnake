@@ -102,6 +102,36 @@ def save_checkpoint(path: Path, model: SnakeActorCritic, meta: dict) -> None:
     torch.save(payload, path)
 
 
+def load_compatible_state(model: SnakeActorCritic, state: dict) -> None:
+    """Load checkpoint weights, expanding stems when the architecture grew."""
+    current = model.state_dict()
+    merged = {}
+    for key, tensor in current.items():
+        if key not in state:
+            merged[key] = tensor
+            continue
+        old = state[key]
+        if old.shape == tensor.shape:
+            merged[key] = old
+            continue
+        if (
+            key == "body.0.weight"
+            and old.ndim == 2
+            and tensor.ndim == 2
+            and old.shape[0] == tensor.shape[0]
+            and old.shape[1] < tensor.shape[1]
+        ):
+            padded = tensor.clone()
+            padded.zero_()
+            padded[:, : old.shape[1]] = old
+            merged[key] = padded
+            continue
+        raise RuntimeError(
+            f"Incompatible checkpoint tensor {key}: {tuple(old.shape)} vs {tuple(tensor.shape)}"
+        )
+    model.load_state_dict(merged)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train a size-invariant Snake PPO agent from scratch.")
     parser.add_argument("--total-steps", type=int, default=2_000_000)
