@@ -1,4 +1,8 @@
-"""Record GIF animations of the never-die bot on every board size."""
+"""Record GIF animations of the never-die bot on every board size.
+
+Frames are drawn in the Google Snake look: light-green checkerboard, thick
+dark-green border, solid blue snake with eyes, and a red apple with a leaf.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +14,7 @@ from typing import List, Tuple
 import numpy as np
 from PIL import Image, ImageDraw
 
-from snake.env import SnakeEnv
+from snake.env import DIRS, SnakeEnv
 from snake.perfect import PerfectBot
 
 SIZES: List[Tuple[int, int]] = [
@@ -27,67 +31,129 @@ SIZES: List[Tuple[int, int]] = [
     (20, 12),
 ]
 
-BG = (7, 16, 24)
-GRID = (18, 32, 48)
-FOOD = (255, 93, 108)
-HEAD = (93, 255, 177)
-BODY = (47, 191, 122)
+# Google Snake palette.
+BOARD_A = (170, 215, 81)  # #aad751
+BOARD_B = (162, 209, 73)  # #a2d149
+BORDER = (87, 138, 52)  # #578a34
+SNAKE = (78, 124, 246)  # #4e7cf6
+EYE_WHITE = (255, 255, 255)
+APPLE = (231, 71, 29)  # #e7471d
+APPLE_SHADOW = (154, 192, 66)
+STEM = (92, 64, 51)
+LEAF = (94, 178, 58)
+OUTSIDE = (74, 117, 44)  # #4a752c
 
 
 def cell_px(width: int, height: int) -> int:
     longest = max(width, height)
     if longest <= 8:
-        return 28
+        return 36
     if longest <= 12:
-        return 20
+        return 28
     if longest <= 16:
-        return 16
-    return 12
+        return 22
+    return 16
+
+
+def _cell_box(pad: int, cell: int, x: int, y: int, inset: float = 0.0) -> List[float]:
+    m = cell * inset
+    return [
+        pad + x * cell + m,
+        pad + y * cell + m,
+        pad + x * cell + cell - m - 1,
+        pad + y * cell + cell - m - 1,
+    ]
+
+
+def _draw_apple(draw: ImageDraw.ImageDraw, pad: int, cell: int, fx: int, fy: int) -> None:
+    # Soft checkerboard-tinted shadow under the fruit.
+    shadow = _cell_box(pad, cell, fx, fy, 0.22)
+    shadow[1] += cell * 0.08
+    shadow[3] += cell * 0.08
+    draw.ellipse(shadow, fill=APPLE_SHADOW)
+
+    body = _cell_box(pad, cell, fx, fy, 0.18)
+    draw.ellipse(body, fill=APPLE)
+
+    cx = pad + fx * cell + cell / 2
+    top = pad + fy * cell + cell * 0.18
+    stem_w = max(1.5, cell * 0.06)
+    draw.line([(cx, top), (cx, top - cell * 0.12)], fill=STEM, width=max(1, int(stem_w)))
+
+    leaf_r = max(2.0, cell * 0.16)
+    draw.ellipse(
+        [cx + cell * 0.02, top - cell * 0.22, cx + cell * 0.02 + leaf_r * 2, top - cell * 0.02],
+        fill=LEAF,
+    )
+
+
+def _draw_snake(draw: ImageDraw.ImageDraw, env: SnakeEnv, pad: int, cell: int) -> None:
+    if not env.snake:
+        return
+    inset = 0.12
+    radius = max(2, int(cell * 0.42))
+
+    # Draw from tail to head so the head paints on top. Adjacent cells share a
+    # rounded connector so the body reads as one continuous Google-style snake.
+    for i in range(len(env.snake) - 1, -1, -1):
+        x, y = env.snake[i]
+        box = _cell_box(pad, cell, x, y, inset)
+        draw.rounded_rectangle(box, radius=radius, fill=SNAKE)
+        if i + 1 < len(env.snake):
+            nx, ny = env.snake[i + 1]
+            if abs(nx - x) + abs(ny - y) == 1:
+                x0 = pad + min(x, nx) * cell + cell * inset
+                y0 = pad + min(y, ny) * cell + cell * inset
+                x1 = pad + max(x, nx) * cell + cell * (1 - inset) - 1
+                y1 = pad + max(y, ny) * cell + cell * (1 - inset) - 1
+                draw.rectangle([x0, y0, x1, y1], fill=SNAKE)
+
+    # Eyes on the head, looking in the facing direction.
+    hx, hy = env.head
+    cx = pad + hx * cell + cell / 2
+    cy = pad + hy * cell + cell / 2
+    dx, dy = DIRS[env.direction]
+    eye_r = max(2.0, cell * 0.16)
+    pupil_r = max(1.0, cell * 0.07)
+    along = cell * 0.14
+    across = cell * 0.18
+
+    # Perpendicular offset for left/right eyes.
+    px, py = -dy, dx
+    centers = [
+        (cx + dx * along + px * across, cy + dy * along + py * across),
+        (cx + dx * along - px * across, cy + dy * along - py * across),
+    ]
+    for ex, ey in centers:
+        draw.ellipse([ex - eye_r, ey - eye_r, ex + eye_r, ey + eye_r], fill=EYE_WHITE)
+        px_ = ex + dx * eye_r * 0.35
+        py_ = ey + dy * eye_r * 0.35
+        draw.ellipse(
+            [px_ - pupil_r, py_ - pupil_r, px_ + pupil_r, py_ + pupil_r],
+            fill=SNAKE,
+        )
 
 
 def render(env: SnakeEnv, cell: int) -> Image.Image:
-    pad = 8
-    img = Image.new("RGB", (env.width * cell + pad * 2, env.height * cell + pad * 2), BG)
+    border = max(8, cell // 2)
+    pad = border
+    w = env.width * cell + pad * 2
+    h = env.height * cell + pad * 2
+    img = Image.new("RGB", (w, h), OUTSIDE)
     draw = ImageDraw.Draw(img)
+
+    # Thick border, then the two-tone checkerboard playfield.
+    draw.rectangle([0, 0, w - 1, h - 1], fill=BORDER)
     for y in range(env.height):
         for x in range(env.width):
+            color = BOARD_A if (x + y) % 2 == 0 else BOARD_B
             x0 = pad + x * cell
             y0 = pad + y * cell
-            draw.rectangle([x0, y0, x0 + cell - 1, y0 + cell - 1], outline=GRID)
+            draw.rectangle([x0, y0, x0 + cell - 1, y0 + cell - 1], fill=color)
+
     if env.food is not None:
-        fx, fy = env.food
-        inset = max(2, cell // 4)
-        draw.ellipse(
-            [
-                pad + fx * cell + inset,
-                pad + fy * cell + inset,
-                pad + fx * cell + cell - inset,
-                pad + fy * cell + cell - inset,
-            ],
-            fill=FOOD,
-        )
-    n = max(env.length, 1)
-    for i, (x, y) in enumerate(env.snake):
-        t = i / n
-        if i == 0:
-            color = HEAD
-        else:
-            color = (
-                int(BODY[0] * (1 - 0.45 * t)),
-                int(BODY[1] * (1 - 0.25 * t)),
-                int(BODY[2] * (1 - 0.15 * t)),
-            )
-        inset = max(1, cell // 8) if i else max(1, cell // 10)
-        draw.rounded_rectangle(
-            [
-                pad + x * cell + inset,
-                pad + y * cell + inset,
-                pad + x * cell + cell - inset - 1,
-                pad + y * cell + cell - inset - 1,
-            ],
-            radius=max(2, cell // 5),
-            fill=color,
-        )
+        _draw_apple(draw, pad, cell, env.food[0], env.food[1])
+    _draw_snake(draw, env, pad, cell)
     return img
 
 
@@ -175,19 +241,19 @@ def write_gallery(root: Path, reports: list) -> None:
 <html lang="en"><head><meta charset="utf-8" />
 <title>Snake animations</title>
 <style>
-body {{ font-family: system-ui, sans-serif; background: #0b1220; color: #e7eefc; margin: 24px; }}
+body {{ font-family: system-ui, sans-serif; background: #4a752c; color: #f4f8e8; margin: 24px; }}
 h1 {{ font-size: 1.2rem; }}
-h2 {{ font-size: 1rem; margin: 0 0 8px; }}
-p {{ color: #93a0bb; max-width: 720px; }}
+h2 {{ font-size: 1rem; margin: 0 0 8px; color: #e8f0d0; }}
+p {{ color: #d5e4b0; max-width: 720px; }}
 article {{ margin: 24px 0; }}
 .pair {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }}
-figure {{ margin: 0; background: #121b2d; border-radius: 12px; padding: 10px; }}
-img {{ width: 100%; image-rendering: pixelated; }}
-figcaption {{ font-size: 12px; color: #93a0bb; margin-top: 8px; }}
+figure {{ margin: 0; background: #578a34; border-radius: 12px; padding: 10px; }}
+img {{ width: 100%; image-rendering: auto; border-radius: 6px; }}
+figcaption {{ font-size: 12px; color: #d5e4b0; margin-top: 8px; }}
 </style></head>
 <body>
 <h1>Never-die Snake, every board size</h1>
-<p>Rail follows one covering cycle, so every lap looks the same. Fast still never dies: it only jumps ahead on that cycle when the path from the new head to the tail is empty, which cuts about 25–40% of the steps.</p>
+<p>Drawn like Google Snake. Rail follows one covering cycle, so every lap looks the same. Fast still never dies: it only jumps ahead on that cycle when the path from the new head to the tail is empty, which cuts about 25–40% of the steps.</p>
 {''.join(blocks)}
 </body></html>
 """

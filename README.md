@@ -31,7 +31,8 @@ python3 -m snake record
 python3 -m snake play --mode perfect --width 12 --height 12
 ```
 
-Open `animations/index.html` for rail vs fast games on 5×5 through 20×12.
+Open `animations/index.html` for rail vs fast games on 5×5 through 20×12
+(drawn like Google Snake: green checkerboard, blue snake, red apple).
 
 Train from a blank network (writes `models/untrained.pt` first, then the bot):
 
@@ -235,7 +236,7 @@ snake/
   train.py      From-scratch training on a mix of board sizes
   win_train.py  Clone PerfectBot; log mixed-size wins
   perfect.py    Hamiltonian / covering-cycle never-die policy
-  record.py     GIF recorder (rail vs fast)
+  record.py     GIF recorder (rail vs fast, Google Snake look)
   bot.py        Packaged inference: neural | perfect | hybrid | random
   web.py        Browser watcher (http://127.0.0.1:8765/)
   watch.html    Watcher UI
@@ -247,8 +248,8 @@ models/
   win_curve.json Wins vs clone-training iteration
 animations/
   index.html    Gallery: every board size, rail vs fast
-  fast/         Shortcut never-die GIFs
-  rail/         Cycle-only GIFs
+  fast/         Shortcut never-die GIFs (Google Snake look)
+  rail/         Cycle-only GIFs (Google Snake look)
 tests/
   test_snake.py Environment, cycle, fill, and watcher packaging checks
 ```
